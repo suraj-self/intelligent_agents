@@ -25,8 +25,6 @@ def setup_database():
         item_id INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_id TEXT NOT NULL,
         name TEXT,
-        quantity REAL,
-        unit_price REAL,
         total_price REAL,
         FOREIGN KEY (invoice_id) REFERENCES invoices (transaction_id)
     )
@@ -73,13 +71,11 @@ def save_invoice(invoice_data: dict):
         items = invoice_data.get("items", [])
         for item in items:
             cur.execute("""
-                INSERT INTO items (invoice_id, name, quantity, unit_price, total_price)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO items (invoice_id, name, total_price)
+                VALUES (?, ?, ?)
             """, (
                 transaction_id,
                 item.get("name"),
-                item.get("quantity"),
-                item.get("unit_price"),
                 item.get("total_price")
             ))
 
@@ -90,3 +86,36 @@ def save_invoice(invoice_data: dict):
         print(f"Database error: {e}")
     finally:
         con.close()
+
+
+def fetch_invoices(with_items=False):
+    """
+    Fetches all invoices from the database.
+    If with_items=True, also includes the related items for each invoice.
+    Returns a list of dictionaries.
+    """
+    con = sqlite3.connect(DB_FILE)
+    cur = con.cursor()
+
+    cur.execute("SELECT * FROM invoices")
+    invoices_data = cur.fetchall()
+
+    invoices = []
+    for row in invoices_data:
+        invoice = {
+            "transaction_id": row[0],
+            "invoice_date": row[1],
+            "store_name": row[2],
+            "store_location": row[3],
+            "total_amount": row[4]
+        }
+
+        if with_items:
+            cur.execute("SELECT name, total_price FROM items WHERE invoice_id = ?", (row[0],))
+            items_data = cur.fetchall()
+            invoice["items"] = [{"name": item[0], "total_price": item[1]} for item in items_data]
+
+        invoices.append(invoice)
+
+    con.close()
+    return invoices

@@ -3,6 +3,15 @@ from pathlib import Path
 import database
 from gemma_processor import GemmaProcessor
 
+# # Get invoices only
+# all_invoices = database.fetch_invoices()
+# print(all_invoices)
+
+# # Get invoices with their items
+# all_invoices_with_items = database.fetch_invoices(with_items=False)
+# print(all_invoices_with_items)
+
+
 def main(image_path: str):
     """Main function to process an invoice image and save it to the database."""
     print("--- Starting Financial Agent ---")

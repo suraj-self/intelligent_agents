@@ -37,7 +37,7 @@ class GemmaProcessor:
         prompt = self.processor.tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
         inputs = self.processor(text=prompt, images=image, return_tensors="pt").to(self.model.device)
 
-        print("\nExtracting data from invoice with high precision...")
+        print("\nExtracting data from invoice with simplified universal prompt...")
         start_time = time.time()
         outputs = self.model.generate(**inputs, max_new_tokens=2048)
         elapsed_time = time.time() - start_time
@@ -59,33 +59,26 @@ class GemmaProcessor:
             return None
 
     def _build_prompt(self, image_token: str) -> str:
-        """Creates the detailed and restrictive prompt for the model."""
+        """Creates a robust and universal prompt for invoice data extraction."""
         return f"""{image_token}
-            You are a meticulous data extraction expert. Your task is to analyze the provided invoice image and generate a single, perfectly accurate JSON object. You MUST follow these rules without deviation.
+            You are a smart detective. Your job is to find specific clues from this receipt and create a JSON report.
 
-            ### Rule 1: Extract Main Details
-            - `store_name`: The name of the store.
-            - `store_location`: The city and primary location of the store.
-            - `invoice_date`: The date of the bill in DD/MM/YYYY format.
-            - `transaction_id`: The unique bill or invoice number.
+            ### Clue 1: Find the Store Details
+            * `store_name`: Find the big name of the shop at the very top.
+            * `store_location`: Find the city where the shop is.
+            * `invoice_date`: Find the date the shopping happened.
+            * `transaction_id`: Find the "Bill No" or "Invoice No.".
 
-            ### Rule 2: Extract Financials with Extreme Care
-            - `total_amount`: Find the final grand total. This is usually labeled 'Amount Received From Customer' or a similar final total.
+            ### Clue 2: Find the Final Price
+            * `total_amount`: Find the final total price paid. Look for "Total Amount" or "Payable Amt".
 
-            ### Rule 3: Extract the Items List Flawlessly
-            - You MUST ONLY extract items from the main list under the 'HSN' or 'Description' or 'Particulars' heading.
-            - **NEGATIVE CONSTRAINT:** DO NOT include any lines from the 'GST Breakup-Details' section in the items list.
-            - **NEGATIVE CONSTRAINT:** DO NOT invent or hallucinate items. If an item is not clearly visible in the 'Particulars' list, do not include it.
-            - For each real item:
-                - `name`: The description of the item. Be precise.
-                - `quantity`: The value from the 'Qty/Kg' column.
-                - `total_price`: The value from the 'Value' column for that specific item.
-                - `unit_price`: You MUST calculate this by dividing the item's `total_price` by its `quantity`.
+            ### Clue 3: List the Shopping Items (Most Important!)
+            * Look for the main list of all the things that were bought.
+            * For each thing on the list, you only need two pieces of information:
+                * `name`: The name of the item. Just the name, no extra codes or numbers.
+                * `total_price`: The final price for that item, which is always the number on the far right of the list.
 
-            ### Final Checklist Before Output
-            Before you generate the JSON, mentally confirm the following:
-            1.  Are all items taken ONLY from the 'HSN' or 'Description' or 'Particulars' list?
-            2.  Are there any invented items in the list? (There should be none).
-
-            Now, generate ONLY the single, valid JSON object and nothing else.
+            ### Final Rule
+            * If you can't find a clue, just write `null`.
+            * Give me ONLY the JSON report and nothing else.
             """
