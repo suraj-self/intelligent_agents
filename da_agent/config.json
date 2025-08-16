@@ -1,0 +1,5 @@
+{
+    "db_path": "agent_workspace.db",
+    "table_name": "knowledge_base",
+    "model_id": "google/gemma-3n-e2b-it"
+}
