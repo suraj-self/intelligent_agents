@@ -89,7 +89,9 @@ class FinancialAIAgent:
         Do not include any markdown, code fences (like ```sql), or explanations—just the raw SQL query.
         Ensure the query is safe, read-only, and uses proper formatting for dates (assume 'Date' is TEXT in YYYY-MM-DD format).
         Use exact column names from: {', '.join(self.columns)}.
-        For date ranges, extract the month and year from the question (e.g., 'July 2025' means Date >= '2025-07-01' AND Date < '2025-08-01'). If no year is specified, use the current year ({self.current_year}). If the month is ambiguous, assume the most recent occurrence relative to today (August {self.current_year}).
+        For date ranges, extract the month and year from the question (e.g., 'May 2025' means Date >= '2025-05-01' AND Date < '2025-06-01'). If no year is specified, use the current year ({self.current_year}). If the month is ambiguous, assume the most recent occurrence relative to today (August {self.current_year}).
+        For queries asking for 'least spending category', select Category and Amount for all transactions in the specified period to allow Pandas to group and sum absolute amounts. Do NOT use MIN, GROUP BY, or ORDER BY in SQL for these queries, as aggregation is handled in Pandas.
+        Example: For "least spending category in May 2025", use: SELECT Category, Amount FROM {self.table_name} WHERE Date >= '2025-05-01' AND Date < '2025-06-01'
         Example: For "spending in July 2025 for Fruits & Vegetables", use: SELECT Date, Amount FROM {self.table_name} WHERE Category = 'Fruits & Vegetables' AND Date >= '2025-07-01' AND Date < '2025-08-01'
         Example: For "spending in June for Groceries", use: SELECT Date, Amount FROM {self.table_name} WHERE Category = 'Groceries' AND Date >= '{self.current_year}-06-01' AND Date < '{self.current_year}-07-01'
         """
@@ -109,19 +111,23 @@ class FinancialAIAgent:
     def generate_pandas_code(self, question: str, df_description: str) -> str:
         """Generates Pandas code to analyze the fetched data."""
         prompt = f"""
-        You are a Pandas expert. You are given a DataFrame 'df' with columns: {df_description}.
-        Write ONLY the Python code snippet to compute and print the final answer to the question: '{question}'.
-        Use ONLY the columns in the DataFrame (from {df_description}). Do NOT assume other columns exist. Do NOT create a new DataFrame.
-        Do not include markdown, code fences (like ```python), or imports (e.g., import pandas as pd).
-        Handle data types: 'Date' as datetime, 'Amount' as float (negative values represent debits), others as strings.
-        For spending calculations, use the absolute value of 'Amount' since debits are negative. Do NOT filter out negative amounts (e.g., do NOT use Amount >= 0).
-        Avoid ALL filtering by date, month, year, or category, as the SQL query already handles this.
-        Use proper syntax for any conditions (e.g., wrap logical operations in parentheses like (df['col'] == value)).
-        The code must end with print(result) where result is the final value or summary.
-        Example: For "spending in May 2025 for Fruits & Vegetables" with columns ['Date', 'Amount'], use:
-        df['Amount'] = df['Amount'].astype(float)
-        total = df['Amount'].abs().sum()
-        print(total)
+        You are an autonomous Pandas expert. Given a DataFrame 'df' with columns: {df_description}, analyze the user query: '{question}'.
+        Observe the query, think step-by-step about its intent (e.g., sum, average, least spending category, top N), plan the Pandas code, and write ONLY the Python code snippet to compute and print the final answer.
+        Rules:
+        - Use ONLY columns in the DataFrame: {df_description}. Do NOT assume other columns like 'Date' unless explicitly listed.
+        - Do NOT create a new DataFrame or load data.
+        - Convert 'Date' to datetime using pd.to_datetime(df['Date']) ONLY if date operations are needed and 'Date' is in the DataFrame.
+        - Handle data types: 'Date' as TEXT initially (if present), 'Amount' as float (negative values are debits), others as strings.
+        - For spending, use absolute value of 'Amount' (e.g., df['Amount'].abs()).
+        - Do NOT filter by date, month, year, or category—SQL already handles this. Date filtering in Pandas will cause errors.
+        - Use proper syntax (e.g., wrap conditions in parentheses: (df['col'] == value)).
+        - End with print(result) where result is the final value or summary.
+        - Do NOT include markdown, code fences, or imports (e.g., import pandas as pd).
+        - Avoid explicit if-else in reasoning; flow naturally from query to code.
+        Observe: Break down the query into its core ask (e.g., least spending category, average, top 3).
+        Think: Reason about required Pandas operations (e.g., groupby, sum, idxmin for least spending).
+        Plan: Outline code steps (e.g., convert Amount to float, group by Category, find minimum).
+        Write: Provide the complete code snippet.
         """
         raw_code = self.generate_text(prompt, max_new_tokens=300)
         # Strip any markdown or code fences
