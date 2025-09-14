@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Plan Schema v1.1",
+  "type": "object",
+  "required": [
+    "intent",
+    "requires_graph",
+    "graph_type",
+    "summary_text",
+    "sql_query",
+    "confidence",
+    "clarify"
+  ],
+  "properties": {
+    "intent": {
+      "type": "string"
+    },
+    "requires_graph": {
+      "type": "boolean"
+    },
+    "graph_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "graph_params": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "summary_text": {
+      "type": "string"
+    },
+    "sql_query": {
+      "type": "string"
+    },
+    "pandas_code": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "clarify": {
+      "type": "object",
+      "required": [
+        "ask",
+        "question"
+      ],
+      "properties": {
+        "ask": {
+          "type": "boolean"
+        },
+        "question": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ask": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "question": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "question": {
+                "type": [
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}
